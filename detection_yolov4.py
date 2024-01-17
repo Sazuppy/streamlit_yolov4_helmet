@@ -61,9 +61,9 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
         # Отображение кадра в контейнере Streamlit
         video_container.image(frame, channels="RGB")
         
-        key = cv.waitKey(1)
-        if key == ord('q'):
-            break
+        # key = cv.waitKey(1)
+        # if key == ord('q'):
+        #     break
     cap.release()
     cv.destroyAllWindows()
     

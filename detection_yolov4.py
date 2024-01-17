@@ -29,7 +29,7 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(data.read())
     temp_file_path = temp_file.name
-    stop = st.button("Остановка обработки", key=f"stop_button_{frame_counter}", type="primary")
+    stop = st.checkbox("Остановка обработки")
     # Захват видео
     cap = cv.VideoCapture(temp_file_path)
     starting_time = time.time()

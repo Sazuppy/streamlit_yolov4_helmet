@@ -1,4 +1,4 @@
-cv2
 streamlit
 tempfile
 time
+opencv-python 4.8.1.78

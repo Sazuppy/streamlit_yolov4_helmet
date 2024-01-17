@@ -62,11 +62,7 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
             # Отображение кадра в контейнере Streamlit
             video_container.image(frame, channels="RGB")
         
-        stop = st.sidebar.radio(
-        "Остановить обработку",
-        ["Стоп"],
-        index=None,
-        )
+        stop = st.button("Остановка обработки", type="primary")
         if stop:
             break
     cap.release()

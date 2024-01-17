@@ -134,8 +134,8 @@ elif app_mode == 'Изображение':
     )
     if genre == 'yolov4':
         names = 'coco.names'
-        weights = 'yolov4.weights'
-        config = 'yolov4.cfg'
+        weights = 'yolov4-tiny.weights'
+        config = 'yolov4-tiny-custom.cfg'
     elif genre == 'helmet':
         names = 'helmet.names'
         weights = 'helmet_final.weights'

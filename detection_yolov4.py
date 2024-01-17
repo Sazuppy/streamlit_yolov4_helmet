@@ -64,8 +64,8 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
         # key = cv.waitKey(1)
         # if key == ord('q'):
         #     break
-    cap.release()
-    cv.destroyAllWindows()
+    # cap.release()
+    # cv.destroyAllWindows()
     
     if frame is not None and not frame.empty():
         frame = cv.resize(frame,(0,0), fx=0.8, fy=0.8)

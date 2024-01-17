@@ -1,5 +1,4 @@
-libgl1-mesa-glx
-libglib2.0-0
+
 streamlit==1.28.0
 opencv-python==4.8.1.78
 opencv-python-headless

@@ -40,31 +40,36 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
         if ret == False:
             break
         # Обнаружение объектов с использованием YOLOv4
-        classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
-        for (classid, score, box) in zip(classes, scores, boxes):
-            print(classid)
-            color = COLORS[int(classid) % len(COLORS)]
-            label = "%s : %f" % (class_name[classid], score)
-            cv.rectangle(frame, box, color, 1)
-            cv.putText(frame, label, (box[0], box[1]-10),
-                    cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
-        if app_mode == 'Видео':
-            endingTime = time.time() - starting_time
-            fps = frame_counter/endingTime
-            cv.putText(frame, f'FPS: {fps}', (20, 50),
-                    cv.FONT_HERSHEY_COMPLEX, 0.7, (0, 255, 0), 2)
+        if frame_counter % 5 == 0:
+            classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
+            for (classid, score, box) in zip(classes, scores, boxes):
+                print(classid)
+                color = COLORS[int(classid) % len(COLORS)]
+                label = "%s : %f" % (class_name[classid], score)
+                cv.rectangle(frame, box, color, 1)
+                cv.putText(frame, label, (box[0], box[1]-10),
+                        cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
+            if app_mode == 'Видео':
+                endingTime = time.time() - starting_time
+                fps = frame_counter/endingTime
+                cv.putText(frame, f'FPS: {fps}', (20, 50),
+                        cv.FONT_HERSHEY_COMPLEX, 0.7, (0, 255, 0), 2)
+            
+            # Преобразование кадра в формат RGB для отображения в Streamlit
+            frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+            video_frames.append(frame.copy())
+            
+            # Отображение кадра в контейнере Streamlit
+            video_container.image(frame, channels="RGB")
         
-        # Преобразование кадра в формат RGB для отображения в Streamlit
-        frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-        video_frames.append(frame.copy())
-        
-        # Отображение кадра в контейнере Streamlit
-        video_container.image(frame, channels="RGB")
-        
-        # key = cv.waitKey(1)
-        # if key == ord('q'):
-        #     break
-    # cap.release()
+        stop = st.sidebar.radio(
+        "Остановить обработку",
+        ["Стоп"],
+        index=None,
+        )
+        if stop:
+            break
+    cap.release()
     # cv.destroyAllWindows()
     
     if frame is not None and not frame.empty():

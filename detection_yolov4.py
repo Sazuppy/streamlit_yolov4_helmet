@@ -194,7 +194,7 @@ elif app_mode == 'Видео':
     if video_file_buffer:
         st.sidebar.video(video_file_buffer)
         
-    st.markdown("#### Определение объектов на изображении")
+    st.markdown("#### Определение объектов на видео")
     
     if video_file_buffer:
         start = st.button("Запуск обработки", type="primary")

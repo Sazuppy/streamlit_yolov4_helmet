@@ -2,7 +2,9 @@ import cv2 as cv
 import streamlit as st
 import tempfile
 import time
-
+from moviepy.editor import VideoClip
+from moviepy.editor import AudioFileClip
+import datetime
 
 def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     Conf_threshold = Conf_threshold
@@ -22,18 +24,24 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     model.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
     
     # Создание контейнера для видео в Streamlit
-    video_container = st.empty()
+    # video_container = st.empty()
     video_frames = []
     
     # Сохранение видеофайла во временный файл
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(data.read())
     temp_file_path = temp_file.name
-    stop = st.button("Остановка обработки")
+    
     # Захват видео
     cap = cv.VideoCapture(temp_file_path)
     starting_time = time.time()
     frame_counter = 0
+    total_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
+    progress_text = "Ожидайте, операция выполняется"
+    progress_bar = st.progress(0)
+    remaining_time = datetime.timedelta(seconds=0)
+    st.markdown('Оставшееся время выполнения: ') 
+    remaining_time_container = st.empty()
     while True:
         ret, frame = cap.read()
         frame_counter += 1
@@ -42,7 +50,6 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
         # Обнаружение объектов с использованием YOLOv4
         classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
         for (classid, score, box) in zip(classes, scores, boxes):
-            print(classid)
             color = COLORS[int(classid) % len(COLORS)]
             label = "%s : %f" % (class_name[classid], score)
             cv.rectangle(frame, box, color, 1)
@@ -51,28 +58,60 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
         if app_mode == 'Видео':
             endingTime = time.time() - starting_time
             fps = frame_counter/endingTime
-            cv.putText(frame, f'FPS: {fps}', (20, 50),
-                    cv.FONT_HERSHEY_COMPLEX, 0.7, (0, 255, 0), 2)
+            remaining_frames = total_frames - frame_counter
+            remaining_time = datetime.timedelta(seconds=int(remaining_frames / fps))
+            
+            # cv.putText(frame, f'FPS: {fps}', (20, 50),
+            #         cv.FONT_HERSHEY_COMPLEX, 0.7, (0, 255, 0), 2)
             
         # Преобразование кадра в формат RGB для отображения в Streamlit
         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         video_frames.append(frame.copy())
-            
+        # Обновление панели прогресса
+        progress_bar.progress(frame_counter / total_frames, text=progress_text)   
         # Отображение кадра в контейнере Streamlit
-        video_container.image(frame, channels="RGB")
-            
+        # video_container.image(frame, channels="RGB")
+        # Обновление информации об оставшемся времени
+        remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))   
         
         
         if stop:
             break
-    cap.release()
+   # Считывание видео для получения FPS
+    cap_temp = cv.VideoCapture(temp_file_path)
+    fps_original = cap_temp.get(cv.CAP_PROP_FPS)
+    total_frames_original = int(cap_temp.get(cv.CAP_PROP_FRAME_COUNT))
+    cap_temp.release()
+
+    # Считывание аудио для получения длительности
+    audio_clip = AudioFileClip(temp_file_path)
+
+    # Создание функции для извлечения кадров из списка video_frames
+    def get_frame(t):
+        index = int(t * fps_original)
+        if index < total_frames_original:
+            return video_frames[index]
+        else:
+            return video_frames[-1]
+
+    # Сохранение обработанного видео с звуковой дорожкой
+    video_clip = VideoClip(get_frame, duration=total_frames_original / fps_original)
+    video_clip = video_clip.set_audio(audio_clip)
+    output_file_path = 'processed_video.mp4'
+    video_clip.write_videofile(output_file_path, codec="libx264", audio_codec="aac", fps=fps_original)
+
+
+
+    
+    
+    # cap.release()
     # cv.destroyAllWindows()
     
     if frame is not None and not frame.empty():
         frame = cv.resize(frame,(0,0), fx=0.8, fy=0.8)
         frame = image_resize(image=frame, width=640)
         stframe.image(frame,channels='BGR', use_column_width=True)
-    
+    return output_file_path
 
 st.set_page_config(layout="wide", page_title="Детекция с YOLO v4")
 st.title("Детекция с YOLO v4")
@@ -125,6 +164,9 @@ if app_mode == 'О сервисе':
 
 Этот проект не только демонстрирует работу нейросети, но и подчеркивает его возможности в адаптации к конкретным задачам и обучению на собственных данных.
     ''')
+    with st.expander("Пример видео на выходе после обработки"):
+        st.video('processed_test1.mp4')
+        st.video('processed_test2.mp4')
 
 # Image Page
 elif app_mode == 'Изображение':
@@ -146,8 +188,20 @@ elif app_mode == 'Изображение':
 
     st.markdown("#### Определение объектов на изображении")
 
+    st.sidebar.markdown('---')
     detection_confidence = st.sidebar.slider('Порог уверенности', min_value=0.0, max_value=1.0, value=0.5)
+    with st.sidebar.expander("Назначение:"):
+        st.markdown('''Определяет, насколько уверенной должна быть модель в том, что объект обнаружен, прежде чем результат будет рассматриваться как положительный. 
+                 Если уверенность модели ниже этого порога, объект не будет считаться детектированным.
+                 Обычно устанавливается в диапазоне 0.1-0.9 в зависимости от ваших требований к уверенности. 
+                 Более низкие значения приведут к более широкому набору детекций, но с большим числом ложных срабатываний.''')
     tracking_confidence = st.sidebar.slider('Порог подавления', min_value=0.0, max_value=1.0, value=0.5)
+    with st.sidebar.expander("Назначение:"):
+        st.markdown('''Используется для подавления (фильтрации) дублирующих детекций. 
+                 Когда модель обнаруживает несколько прямоугольных областей, перекрывающихся с высокой уверенностью, порог подавления помогает выбрать только одну из них. 
+                 Это предотвращает появление множественных детекций для одного и того же объекта.
+                 Обычно устанавливается в диапазоне 0.1-0.5. 
+                 Более высокие значения делают алгоритм более консервативным, выбирая более уверенные детекции, но при этом может пропустить менее уверенные детекции.''')
     st.sidebar.markdown('---')
     
     img_file_buffer = st.sidebar.file_uploader("Загрузите изображение", type=["jpg", "jpeg", "png"])
@@ -183,7 +237,18 @@ elif app_mode == 'Видео':
     
     st.sidebar.markdown('---')
     detection_confidence = st.sidebar.slider('Порог уверенности', min_value=0.0, max_value=1.0, value=0.5)
+    with st.sidebar.expander("Назначение:"):
+        st.markdown('''Определяет, насколько уверенной должна быть модель в том, что объект обнаружен, прежде чем результат будет рассматриваться как положительный. 
+                 Если уверенность модели ниже этого порога, объект не будет считаться детектированным.
+                 Обычно устанавливается в диапазоне 0.1-0.9 в зависимости от ваших требований к уверенности. 
+                 Более низкие значения приведут к более широкому набору детекций, но с большим числом ложных срабатываний.''')
     tracking_confidence = st.sidebar.slider('Порог подавления', min_value=0.0, max_value=1.0, value=0.5)
+    with st.sidebar.expander("Назначение:"):
+        st.markdown('''Используется для подавления (фильтрации) дублирующих детекций. 
+                 Когда модель обнаруживает несколько прямоугольных областей, перекрывающихся с высокой уверенностью, порог подавления помогает выбрать только одну из них. 
+                 Это предотвращает появление множественных детекций для одного и того же объекта.
+                 Обычно устанавливается в диапазоне 0.1-0.5. 
+                 Более высокие значения делают алгоритм более консервативным, выбирая более уверенные детекции, но при этом может пропустить менее уверенные детекции.''')
     st.sidebar.markdown('---')
 
     ## Get Video
@@ -198,6 +263,11 @@ elif app_mode == 'Видео':
     
     if video_file_buffer:
         start = st.button("Запуск обработки", type="primary")
+        stop = st.button("Остановка обработки")
         if start:
-            yolov4(names, weights, config, video_file_buffer, detection_confidence, tracking_confidence)
+            output_file_path = yolov4(names, weights, config, video_file_buffer, detection_confidence, tracking_confidence)
+            # Предоставление ссылки для скачивания обработанного видео
+            st.markdown('### Обработанное видео')
+            st.video(output_file_path)
+            
     

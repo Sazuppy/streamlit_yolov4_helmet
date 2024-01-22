@@ -24,8 +24,6 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     model = cv.dnn_DetectionModel(net)
     model.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
     
-    video_frames = []
-    
     # Сохранение видеофайла во временный файл
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(data.read())
@@ -40,32 +38,72 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     remaining_time = datetime.timedelta(seconds=0)
     st.markdown('Оставшееся время выполнения: ') 
     remaining_time_container = st.empty()
+    
+    # Чтение видео по порциям
+    batch_size = 10  # Регулируйте размер порции в зависимости от доступной памяти
+    video_frames = []
+    
     while True:
-        ret, frame = cap.read()
-        frame_counter += 1
-        if ret == False:
+        frames_batch = []
+        for _ in range(batch_size):
+            ret, frame = cap.read()
+            frame_counter += 1
+            if not ret:
+                break
+            frames_batch.append(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+
+        if not frames_batch:
             break
-        # Обнаружение объектов с использованием YOLOv4
-        classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
-        for (classid, score, box) in zip(classes, scores, boxes):
-            color = COLORS[int(classid) % len(COLORS)]
-            label = "%s : %f" % (class_name[classid], score)
-            cv.rectangle(frame, box, color, 1)
-            cv.putText(frame, label, (box[0], box[1]-10),
-                    cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
-        if app_mode == 'Видео':
-            endingTime = time.time() - starting_time
-            fps = frame_counter/endingTime
-            remaining_frames = total_frames - frame_counter
-            remaining_time = datetime.timedelta(seconds=int(remaining_frames / fps))
+
+        # Обработка порции кадров
+        for frame in frames_batch:
+            classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
+            for (classid, score, box) in zip(classes, scores, boxes):
+                color = COLORS[int(classid) % len(COLORS)]
+                label = "%s : %f" % (class_name[classid], score)
+                cv.rectangle(frame, box, color, 1)
+                cv.putText(frame, label, (box[0], box[1]-10),
+                           cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
+
+            # Преобразование кадра в формат RGB для отображения в Streamlit
+            video_frames.append(frame.copy())
+
+            if app_mode == 'Видео':
+                ending_time = time.time() - starting_time
+                fps = frame_counter / ending_time
+                remaining_frames = total_frames - frame_counter
+                remaining_time = datetime.timedelta(seconds=int(remaining_frames / fps))
+                remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))
+
+            if stop:
+                break   
+    
+    # while True:
+    #     ret, frame = cap.read()
+    #     frame_counter += 1
+    #     if ret == False:
+    #         break
+    #     # Обнаружение объектов с использованием YOLOv4
+    #     classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
+    #     for (classid, score, box) in zip(classes, scores, boxes):
+    #         color = COLORS[int(classid) % len(COLORS)]
+    #         label = "%s : %f" % (class_name[classid], score)
+    #         cv.rectangle(frame, box, color, 1)
+    #         cv.putText(frame, label, (box[0], box[1]-10),
+    #                 cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
+    #     if app_mode == 'Видео':
+    #         endingTime = time.time() - starting_time
+    #         fps = frame_counter/endingTime
+    #         remaining_frames = total_frames - frame_counter
+    #         remaining_time = datetime.timedelta(seconds=int(remaining_frames / fps))
             
-        # Преобразование кадра в формат RGB для отображения в Streamlit
-        frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-        video_frames.append(frame.copy())
-        remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))           
+    #     # Преобразование кадра в формат RGB для отображения в Streamlit
+    #     frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+    #     video_frames.append(frame.copy())
+    #     remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))           
         
-        if stop:
-            break
+    #     if stop:
+    #         break
    # Считывание видео для получения FPS
     fps_original = cap.get(cv.CAP_PROP_FPS)
     total_frames_original = int(cap.get(cv.CAP_PROP_FRAME_COUNT))

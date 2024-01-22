@@ -6,6 +6,7 @@ from moviepy.editor import VideoClip
 from moviepy.editor import AudioFileClip
 import datetime
 
+@st.cache
 def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     Conf_threshold = Conf_threshold
     NMS_threshold = NMS_threshold
@@ -95,6 +96,7 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
             return video_frames[-1]
 
     # Сохранение обработанного видео с звуковой дорожкой
+    st.markdown('Сборка видео')
     video_clip = VideoClip(get_frame, duration=total_frames_original / fps_original)
     video_clip = video_clip.set_audio(audio_clip)
     output_file_path = 'processed_video.mp4'

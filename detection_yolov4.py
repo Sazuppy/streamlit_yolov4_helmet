@@ -6,7 +6,6 @@ from moviepy.editor import VideoClip
 from moviepy.editor import AudioFileClip
 import datetime
 
-
 @st.cache_resource
 def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     Conf_threshold = Conf_threshold
@@ -25,8 +24,6 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     model = cv.dnn_DetectionModel(net)
     model.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
     
-    # Создание контейнера для видео в Streamlit
-    # video_container = st.empty()
     video_frames = []
     
     # Сохранение видеофайла во временный файл
@@ -39,8 +36,7 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     starting_time = time.time()
     frame_counter = 0
     total_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
-    # progress_text = "Ожидайте, операция выполняется"
-    # progress_bar = st.progress(0)
+
     remaining_time = datetime.timedelta(seconds=0)
     st.markdown('Оставшееся время выполнения: ') 
     remaining_time_container = st.empty()
@@ -63,27 +59,17 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
             remaining_frames = total_frames - frame_counter
             remaining_time = datetime.timedelta(seconds=int(remaining_frames / fps))
             
-            # cv.putText(frame, f'FPS: {fps}', (20, 50),
-            #         cv.FONT_HERSHEY_COMPLEX, 0.7, (0, 255, 0), 2)
-            
         # Преобразование кадра в формат RGB для отображения в Streamlit
         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         video_frames.append(frame.copy())
-        # Обновление панели прогресса
-        # progress_bar.progress(frame_counter / total_frames, text=progress_text)   
-        # Отображение кадра в контейнере Streamlit
-        # video_container.image(frame, channels="RGB")
-        # Обновление информации об оставшемся времени
-        remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))   
-        
+        remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))           
         
         if stop:
             break
    # Считывание видео для получения FPS
-    cap_temp = cv.VideoCapture(temp_file_path)
-    fps_original = cap_temp.get(cv.CAP_PROP_FPS)
-    total_frames_original = int(cap_temp.get(cv.CAP_PROP_FRAME_COUNT))
-    cap_temp.release()
+    fps_original = cap.get(cv.CAP_PROP_FPS)
+    total_frames_original = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
+    cap.release()
 
     # Считывание аудио для получения длительности
     audio_clip = AudioFileClip(temp_file_path)
@@ -102,14 +88,7 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     video_clip = video_clip.set_audio(audio_clip)
     output_file_path = 'processed_video.mp4'
     video_clip.write_videofile(output_file_path, codec="libx264", audio_codec="aac", fps=fps_original)
-
-
-
-    
-    
-    # cap.release()
-    # cv.destroyAllWindows()
-    
+   
     if frame is not None and not frame.empty():
         frame = cv.resize(frame,(0,0), fx=0.8, fy=0.8)
         frame = image_resize(image=frame, width=640)

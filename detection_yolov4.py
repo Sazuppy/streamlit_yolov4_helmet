@@ -6,7 +6,8 @@ from moviepy.editor import VideoClip
 from moviepy.editor import AudioFileClip
 import datetime
 
-@st.cache
+
+@st.cache_resource
 def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     Conf_threshold = Conf_threshold
     NMS_threshold = NMS_threshold
@@ -38,8 +39,8 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     starting_time = time.time()
     frame_counter = 0
     total_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
-    progress_text = "Ожидайте, операция выполняется"
-    progress_bar = st.progress(0)
+    # progress_text = "Ожидайте, операция выполняется"
+    # progress_bar = st.progress(0)
     remaining_time = datetime.timedelta(seconds=0)
     st.markdown('Оставшееся время выполнения: ') 
     remaining_time_container = st.empty()
@@ -69,7 +70,7 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         video_frames.append(frame.copy())
         # Обновление панели прогресса
-        progress_bar.progress(frame_counter / total_frames, text=progress_text)   
+        # progress_bar.progress(frame_counter / total_frames, text=progress_text)   
         # Отображение кадра в контейнере Streamlit
         # video_container.image(frame, channels="RGB")
         # Обновление информации об оставшемся времени

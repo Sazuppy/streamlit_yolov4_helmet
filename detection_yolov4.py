@@ -7,7 +7,7 @@ from moviepy.editor import AudioFileClip
 import datetime
 
 @st.cache_resource
-def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
+def yolov4(names, weights, config, Conf_threshold, NMS_threshold):
     Conf_threshold = Conf_threshold
     NMS_threshold = NMS_threshold
     COLORS = [(0, 255, 0), (0, 0, 255), (255, 0, 0),
@@ -23,7 +23,10 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
 
     model = cv.dnn_DetectionModel(net)
     model.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
-    
+    return model, COLORS, class_name
+
+
+def temp_file(data):    
     # Сохранение видеофайла во временный файл
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(data.read())
@@ -31,87 +34,63 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
     
     # Захват видео
     cap = cv.VideoCapture(temp_file_path)
+    temp_file.close()
+    return cap, temp_file_path
+
+def image_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name):
+    
+    ret, frame = cap.read()
+    # Обнаружение объектов с использованием YOLOv4
+    classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
+    for (classid, score, box) in zip(classes, scores, boxes):
+        color = COLORS[int(classid) % len(COLORS)]
+        label = "%s : %f" % (class_name[classid], score)
+        cv.rectangle(frame, box, color, 1)
+        cv.putText(frame, label, (box[0], box[1]-10),
+                cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
+    frame = cv.resize(frame,(0,0), fx=0.8, fy=0.8)
+    return frame       
+    
+def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name):
     starting_time = time.time()
     frame_counter = 0
     total_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
-
     remaining_time = datetime.timedelta(seconds=0)
-    st.markdown('Оставшееся время выполнения: ') 
     remaining_time_container = st.empty()
-    
-    # Чтение видео по порциям
-    batch_size = 10  # Регулируйте размер порции в зависимости от доступной памяти
     video_frames = []
-    
     while True:
-        frames_batch = []
-        for _ in range(batch_size):
-            ret, frame = cap.read()
-            frame_counter += 1
-            if not ret:
-                break
-            frames_batch.append(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
-
-        if not frames_batch:
+        ret, frame = cap.read()
+        frame_counter += 1
+        if ret == False:
             break
-
-        # Обработка порции кадров
-        for frame in frames_batch:
-            classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
-            for (classid, score, box) in zip(classes, scores, boxes):
-                color = COLORS[int(classid) % len(COLORS)]
-                label = "%s : %f" % (class_name[classid], score)
-                cv.rectangle(frame, box, color, 1)
-                cv.putText(frame, label, (box[0], box[1]-10),
-                           cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
-
-            # Преобразование кадра в формат RGB для отображения в Streamlit
-            video_frames.append(frame.copy())
-
-            if app_mode == 'Видео':
-                ending_time = time.time() - starting_time
-                fps = frame_counter / ending_time
-                remaining_frames = total_frames - frame_counter
-                remaining_time = datetime.timedelta(seconds=int(remaining_frames / fps))
-                remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))
-
-            if stop:
-                break   
-    
-    # while True:
-    #     ret, frame = cap.read()
-    #     frame_counter += 1
-    #     if ret == False:
-    #         break
-    #     # Обнаружение объектов с использованием YOLOv4
-    #     classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
-    #     for (classid, score, box) in zip(classes, scores, boxes):
-    #         color = COLORS[int(classid) % len(COLORS)]
-    #         label = "%s : %f" % (class_name[classid], score)
-    #         cv.rectangle(frame, box, color, 1)
-    #         cv.putText(frame, label, (box[0], box[1]-10),
-    #                 cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
-    #     if app_mode == 'Видео':
-    #         endingTime = time.time() - starting_time
-    #         fps = frame_counter/endingTime
-    #         remaining_frames = total_frames - frame_counter
-    #         remaining_time = datetime.timedelta(seconds=int(remaining_frames / fps))
+        # Обнаружение объектов с использованием YOLOv4
+        classes, scores, boxes = model.detect(frame, Conf_threshold, NMS_threshold)
+        for (classid, score, box) in zip(classes, scores, boxes):
+            color = COLORS[int(classid) % len(COLORS)]
+            label = "%s : %f" % (class_name[classid], score)
+            cv.rectangle(frame, box, color, 1)
+            cv.putText(frame, label, (box[0], box[1]-10),
+                    cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
+        if app_mode == 'Видео':
+            endingTime = time.time() - starting_time
+            fps = frame_counter/endingTime
+            remaining_frames = total_frames - frame_counter
+            remaining_time = datetime.timedelta(seconds=int(remaining_frames / fps))
             
-    #     # Преобразование кадра в формат RGB для отображения в Streamlit
-    #     frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-    #     video_frames.append(frame.copy())
-    #     remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))           
+        # Преобразование кадра в формат RGB для отображения в Streamlit
+        frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+        video_frames.append(frame.copy())
+        remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))           
         
-    #     if stop:
-    #         break
-   # Считывание видео для получения FPS
+        if stop:
+            break
+    return video_frames
+
+def concotinate_video(video_frames, data):
+    cap = cv.VideoCapture(data)
+    # Считывание видео для получения FPS
     fps_original = cap.get(cv.CAP_PROP_FPS)
     total_frames_original = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
-    cap.release()
-
-    # Считывание аудио для получения длительности
-    audio_clip = AudioFileClip(temp_file_path)
-
     # Создание функции для извлечения кадров из списка video_frames
     def get_frame(t):
         index = int(t * fps_original)
@@ -119,18 +98,14 @@ def yolov4(names, weights, config, data, Conf_threshold, NMS_threshold):
             return video_frames[index]
         else:
             return video_frames[-1]
-
-    # Сохранение обработанного видео с звуковой дорожкой
+    # Считывание аудио для получения длительности
+    audio_clip = AudioFileClip(data)
     st.markdown('Сборка видео')
     video_clip = VideoClip(get_frame, duration=total_frames_original / fps_original)
     video_clip = video_clip.set_audio(audio_clip)
     output_file_path = 'processed_video.mp4'
     video_clip.write_videofile(output_file_path, codec="libx264", audio_codec="aac", fps=fps_original)
-   
-    if frame is not None and not frame.empty():
-        frame = cv.resize(frame,(0,0), fx=0.8, fy=0.8)
-        frame = image_resize(image=frame, width=640)
-        stframe.image(frame,channels='BGR', use_column_width=True)
+        
     return output_file_path
 
 st.set_page_config(layout="wide", page_title="Детекция с YOLO v4")
@@ -142,35 +117,6 @@ app_mode = st.sidebar.selectbox(
     'Параметры',
     ['О сервисе', 'Изображение', 'Видео']
 )
-
-
-@st.cache()
-def image_resize(image, width=None, height=None, inter=cv.INTER_AREA):
-    # Получаем высоту (h) и ширину (w) изображения
-    (h, w) = image.shape[:2]
-    
-    # Если не указаны новые размеры (width и height), возвращаем исходное изображение
-    if width is None and height is None:
-        return image
-    
-    # Если не указана новая ширина (width), вычисляем новые размеры на основе высоты (с сохранением соотношения сторон)
-    if width is None:
-        r = height / float(h)
-        dim = (int(w * r), height)
-    # Иначе, если не указана новая высота (height), вычисляем новые размеры на основе ширины (с сохранением соотношения сторон)
-    else:
-        r = width / float(w)
-        dim = width, int(h * r)
-
-    # Изменяем размер изображения с использованием указанных размеров и метода интерполяции
-    # INTER_AREA - метод интерполяции для уменьшения изображения
-    resized = cv.resize(image, dim, interpolation=inter)
-
-    # Возвращаем измененное изображение
-    return resized
-
-
-
 
 # About Page
 if app_mode == 'О сервисе':
@@ -232,10 +178,12 @@ elif app_mode == 'Изображение':
         st.sidebar.image(img_file_buffer)
     if img_file_buffer:
         start = st.button("Запуск обработки", type="primary")
+        stframe = st.empty()
         if start:
-            yolov4(names, weights, config, img_file_buffer, detection_confidence, tracking_confidence)
-    
-
+            model, COLORS, class_name = yolov4(names, weights, config, detection_confidence, tracking_confidence)
+            cap, temp_file_path = temp_file(img_file_buffer)
+            frame = image_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name)
+            stframe.image(frame,channels='BGR', use_column_width="auto")
 # Video Page
 elif app_mode == 'Видео':
     st.set_option('deprecation.showfileUploaderEncoding', False)
@@ -272,7 +220,7 @@ elif app_mode == 'Видео':
     st.sidebar.markdown('---')
 
     ## Get Video
-    stframe = st.empty()
+    
     video_file_buffer = st.sidebar.file_uploader("Загрузите видео", type=['mp4', 'mov', 'avi', 'asf', 'm4v'])
     
     st.sidebar.text('Исходное видео')
@@ -284,9 +232,12 @@ elif app_mode == 'Видео':
     if video_file_buffer:
         start = st.button("Запуск обработки", type="primary")
         stop = st.button("Остановка обработки")
+        stframe = st.empty()
         if start:
-            output_file_path = yolov4(names, weights, config, video_file_buffer, detection_confidence, tracking_confidence)
-            # Предоставление ссылки для скачивания обработанного видео
+            model, COLORS, class_name = yolov4(names, weights, config, detection_confidence, tracking_confidence)
+            cap, temp_file_path = temp_file(video_file_buffer)
+            video_frames = video_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name)
+            output_file_path = concotinate_video(video_frames, temp_file_path)
             st.markdown('### Обработанное видео')
             st.video(output_file_path)
             

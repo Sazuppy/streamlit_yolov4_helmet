@@ -5,7 +5,10 @@ import time
 from moviepy.editor import VideoClip
 from moviepy.editor import AudioFileClip
 import datetime
-
+from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+from moviepy.editor import VideoFileClip
+from moviepy.editor import concatenate_videoclips
+import os
 @st.cache_resource
 def yolov4(names, weights, config, Conf_threshold, NMS_threshold):
     Conf_threshold = Conf_threshold
@@ -25,17 +28,48 @@ def yolov4(names, weights, config, Conf_threshold, NMS_threshold):
     model.setInputParams(size=(416, 416), scale=1/255, swapRB=True)
     return model, COLORS, class_name
 
+def split_video(input_file, duration=15):
+    output_folder = "temp_video"
+    # Получение длительности входного видео
+    video_clip = VideoFileClip(input_file)
+    total_duration = video_clip.duration
 
-def temp_file(data):    
+    # Разбивка видео на куски по 15 секунд
+    start_time = 0
+    end_time = duration
+    clip_number = 1
+    created_files = []
+    
+    while end_time <= total_duration:
+        output_file = f"{output_folder}/clip_{clip_number}.{input_file.split('.')[-1]}"
+        subclip = video_clip.subclip(start_time, end_time)
+        subclip.write_videofile(output_file, codec="libx264", audio_codec="aac", fps=24)
+        created_files.append(output_file)
+        start_time += duration
+        end_time += duration
+        clip_number += 1
+
+    # Если последний кусок короче 15 секунд, создаем дополнительный кусок
+    if start_time < total_duration:
+        output_file = f"{output_folder}/clip_{clip_number}.{input_file.split('.')[-1]}"
+        subclip = video_clip.subclip(start_time, total_duration)
+        subclip.write_videofile(output_file, codec="libx264", audio_codec="aac", fps=24)
+        created_files.append(output_file)
+    return created_files
+
+def temp_file(data, video_filename):    
     # Сохранение видеофайла во временный файл
-    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{video_filename}')
     temp_file.write(data.read())
     temp_file_path = temp_file.name
-    
+    temp_file.close() 
+    return temp_file_path
+
+def temp_file_for_process(data):
     # Захват видео
-    cap = cv.VideoCapture(temp_file_path)
-    temp_file.close()
-    return cap, temp_file_path
+    cap = cv.VideoCapture(data)
+    
+    return cap, data
 
 def image_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name):
     
@@ -58,6 +92,8 @@ def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
     remaining_time = datetime.timedelta(seconds=0)
     remaining_time_container = st.empty()
     video_frames = []
+    num_fiiles = len(created_files)
+    num = 1
     while True:
         ret, frame = cap.read()
         frame_counter += 1
@@ -80,13 +116,13 @@ def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
         # Преобразование кадра в формат RGB для отображения в Streamlit
         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         video_frames.append(frame.copy())
-        remaining_time_container.markdown('Оставшееся время выполнения: ' + str(remaining_time))           
-        
+        remaining_time_container.markdown(f'Оставшееся время выполнения: {str(remaining_time)}, {num} из {num_fiiles}')           
+        num += 1
         if stop:
             break
     return video_frames
 
-def concotinate_video(video_frames, data):
+def concotinate_video(video_frames, data, output_file_path):
     cap = cv.VideoCapture(data)
     # Считывание видео для получения FPS
     fps_original = cap.get(cv.CAP_PROP_FPS)
@@ -100,13 +136,25 @@ def concotinate_video(video_frames, data):
             return video_frames[-1]
     # Считывание аудио для получения длительности
     audio_clip = AudioFileClip(data)
-    st.markdown('Сборка видео')
+    
     video_clip = VideoClip(get_frame, duration=total_frames_original / fps_original)
     video_clip = video_clip.set_audio(audio_clip)
-    output_file_path = 'processed_video.mp4'
+
     video_clip.write_videofile(output_file_path, codec="libx264", audio_codec="aac", fps=fps_original)
-        
-    return output_file_path
+    
+def concatenate_videos_in_one(file_paths):
+    st.markdown('Сборка видео, ожидайте...')
+    # Создание списка VideoFileClip для каждого видеофайла
+    clips = [VideoFileClip(file_path) for file_path in file_paths]
+
+    # Объединение видео в один клип
+    final_clip = concatenate_videoclips(clips, method="compose")
+
+    # Сохранение объединенного видеофайла
+    output_file_path = f"concatenate.{file_paths[0].split('.')[-1]}"
+    final_clip.write_videofile(output_file_path, codec="libx264", audio_codec="aac")
+
+    return output_file_path 
 
 st.set_page_config(layout="wide", page_title="Детекция с YOLO v4")
 st.title("Детекция с YOLO v4")
@@ -235,10 +283,14 @@ elif app_mode == 'Видео':
         stframe = st.empty()
         if start:
             model, COLORS, class_name = yolov4(names, weights, config, detection_confidence, tracking_confidence)
-            cap, temp_file_path = temp_file(video_file_buffer)
-            video_frames = video_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name)
-            output_file_path = concotinate_video(video_frames, temp_file_path)
+            temp_file_path = temp_file(video_file_buffer, video_file_buffer.name)
+            created_files = split_video(temp_file_path, duration=15)
+            for input_file in created_files:
+                cap, temp_file_path = temp_file_for_process(input_file)
+                video_frames = video_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name)
+                concotinate_video(video_frames, temp_file_path, input_file)
+            final_clip = concatenate_videos_in_one(created_files)
             st.markdown('### Обработанное видео')
-            st.video(output_file_path)
+            st.video(final_clip)
             
     

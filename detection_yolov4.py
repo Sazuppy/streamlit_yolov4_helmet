@@ -84,7 +84,9 @@ def image_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
                 cv.FONT_HERSHEY_COMPLEX, 0.3, color, 1)
     frame = cv.resize(frame,(0,0), fx=0.8, fy=0.8)
     return frame       
-    
+
+num = 1
+
 def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name):
     starting_time = time.time()
     frame_counter = 0
@@ -93,7 +95,7 @@ def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
     remaining_time_container = st.empty()
     video_frames = []
     num_fiiles = len(created_files)
-    num = 1
+    
     while True:
         ret, frame = cap.read()
         frame_counter += 1
@@ -117,9 +119,10 @@ def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         video_frames.append(frame.copy())
         remaining_time_container.markdown(f'Оставшееся время выполнения: {str(remaining_time)}, {num} из {num_fiiles}')           
-        num += 1
+        
         if stop:
             break
+    num += 1    
     return video_frames
 
 def concotinate_video(video_frames, data, output_file_path):
@@ -284,7 +287,7 @@ elif app_mode == 'Видео':
         if start:
             model, COLORS, class_name = yolov4(names, weights, config, detection_confidence, tracking_confidence)
             temp_file_path = temp_file(video_file_buffer, video_file_buffer.name)
-            created_files = split_video(temp_file_path, duration=15)
+            created_files = split_video(temp_file_path, duration=10)
             for input_file in created_files:
                 cap, temp_file_path = temp_file_for_process(input_file)
                 video_frames = video_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name)

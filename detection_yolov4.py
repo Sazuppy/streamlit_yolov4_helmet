@@ -85,7 +85,7 @@ def image_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
     frame = cv.resize(frame,(0,0), fx=0.8, fy=0.8)
     return frame       
 
-num = 1
+
 
 def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name):
     starting_time = time.time()
@@ -118,11 +118,11 @@ def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
         # Преобразование кадра в формат RGB для отображения в Streamlit
         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         video_frames.append(frame.copy())
-        remaining_time_container.markdown(f'Оставшееся время выполнения: {str(remaining_time)}, {num} из {num_fiiles}')           
+        remaining_time_container.markdown(f'Оставшееся время выполнения: {str(remaining_time)}, из {num_fiiles}')           
         
         if stop:
             break
-    num += 1    
+       
     return video_frames
 
 def concotinate_video(video_frames, data, output_file_path):

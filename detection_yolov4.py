@@ -87,7 +87,7 @@ def image_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
 
 
 
-def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name):
+def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name, input_file):
     starting_time = time.time()
     frame_counter = 0
     total_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
@@ -95,7 +95,7 @@ def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
     remaining_time_container = st.empty()
     video_frames = []
     num_fiiles = len(created_files)
-    
+    num = input_file.split('.')[0][-1]
     while True:
         ret, frame = cap.read()
         frame_counter += 1
@@ -118,7 +118,7 @@ def video_process(model, cap, Conf_threshold, NMS_threshold, COLORS, class_name)
         # Преобразование кадра в формат RGB для отображения в Streamlit
         frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         video_frames.append(frame.copy())
-        remaining_time_container.markdown(f'Оставшееся время выполнения: {str(remaining_time)}, из {num_fiiles}')           
+        remaining_time_container.markdown(f'Оставшееся время выполнения: {str(remaining_time)}, {num} из {num_fiiles}')           
         
         if stop:
             break
@@ -290,7 +290,7 @@ elif app_mode == 'Видео':
             created_files = split_video(temp_file_path, duration=10)
             for input_file in created_files:
                 cap, temp_file_path = temp_file_for_process(input_file)
-                video_frames = video_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name)
+                video_frames = video_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name, input_file)
                 concotinate_video(video_frames, temp_file_path, input_file)
             # final_clip = concatenate_videos_in_one(created_files)
             st.markdown('### Обработанное видео')

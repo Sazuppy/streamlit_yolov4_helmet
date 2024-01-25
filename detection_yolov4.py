@@ -292,8 +292,12 @@ elif app_mode == 'Видео':
                 cap, temp_file_path = temp_file_for_process(input_file)
                 video_frames = video_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name)
                 concotinate_video(video_frames, temp_file_path, input_file)
-            final_clip = concatenate_videos_in_one(created_files)
+            # final_clip = concatenate_videos_in_one(created_files)
             st.markdown('### Обработанное видео')
-            st.video(final_clip)
+            with st.expander("Обработонное видео:"):
+                st.markdown('''Так как streamlit cloud вводит ограничение на время выполнение операций,
+                            сборка обработанных файлов невозможна в облаке''')
+                for file in created_files:
+                    st.video(file)
             
     

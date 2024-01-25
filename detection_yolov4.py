@@ -59,11 +59,13 @@ def split_video(input_file, duration=15):
 
 def temp_file_image(data):    
     # Сохранение изображения во временный файл
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{data}')
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(data.read())
     temp_file_path = temp_file.name
-    cap = cv.VideoCapture(data)
-    temp_file.close() 
+
+    # Захват видео
+    cap = cv.VideoCapture(temp_file_path)
+    temp_file.close()
     return cap, temp_file_path
 
 def temp_file(data, video_filename):    

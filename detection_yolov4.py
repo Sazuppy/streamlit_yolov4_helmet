@@ -57,6 +57,15 @@ def split_video(input_file, duration=15):
         created_files.append(output_file)
     return created_files
 
+def temp_file_image(data):    
+    # Сохранение изображения во временный файл
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{data}')
+    temp_file.write(data.read())
+    temp_file_path = temp_file.name
+    cap = cv.VideoCapture(data)
+    temp_file.close() 
+    return cap, temp_file_path
+
 def temp_file(data, video_filename):    
     # Сохранение видеофайла во временный файл
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=f'_{video_filename}')
@@ -232,7 +241,7 @@ elif app_mode == 'Изображение':
         stframe = st.empty()
         if start:
             model, COLORS, class_name = yolov4(names, weights, config, detection_confidence, tracking_confidence)
-            cap, temp_file_path = temp_file(img_file_buffer)
+            cap, temp_file_path = temp_file_image(img_file_buffer)
             frame = image_process(model, cap, detection_confidence, tracking_confidence, COLORS, class_name)
             stframe.image(frame,channels='BGR', use_column_width="auto")
 # Video Page

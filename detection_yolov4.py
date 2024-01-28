@@ -187,7 +187,7 @@ elif app_mode == 'Изображение':
             stframe.image(frame,channels='BGR', use_column_width="auto")
 # Video Page
 elif app_mode == 'Видео':
-    st.set_option('deprecation.showfileUploaderEncoding', False)
+    # st.set_option('deprecation.showfileUploaderEncoding', False)
     
     genre = st.sidebar.radio(
     "Выбор модели",
